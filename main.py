@@ -1,3 +1,2 @@
 print("Hello World")
-print("Updated")
-print("Changes")
+print("Updated changes")
