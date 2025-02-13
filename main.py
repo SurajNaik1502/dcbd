@@ -1,55 +1,52 @@
-import random
+import torch
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
-# Define some generic conflict and resolution rules
-conflicts = [
-    "a terrible storm was approaching",
-    "they were trapped and had to find a way out",
-    "a hidden treasure was buried nearby",
-    "an enemy was watching them from the shadows",
-    "they were lost and needed to find their way back"
-]
+# Load model
+model_name = "gpt2"  
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+model = GPT2LMHeadModel.from_pretrained(model_name)
 
-resolutions = [
-    "they worked together and found a solution",
-    "they used their intelligence to escape",
-    "they learned to trust each other and succeeded",
-    "they discovered an ancient secret that helped them"
-]
+tokenizer.pad_token = tokenizer.eos_token
 
-# Function to generate a dynamic story
-def generate_dynamic_story(prompt):
-    words = prompt.lower().split(" and ")
+device = torch.device("cpu")  # Set to CPU to avoid GPU memory issues
+model.to(device)
 
-    if len(words) != 2:
-        return "Please provide a prompt in the format: 'Character1 and Character2'"
-
-    char1, char2 = words
+def generate_story(prompt, max_length=200, temperature=0.7, top_p=0.9):
+    """
+    Generates a short story using GPT-2 based on the given prompt.
     
-    # Guess a possible setting based on characters (basic logic)
-    settings = {
-        "mouse": "a dense jungle",
-        "lion": "the vast savannah",
-        "robot": "a futuristic city",
-        "astronaut": "deep space",
-        "pirate": "the high seas",
-        "wizard": "a mystical land"
-    }
+    Parameters:
+        prompt (str): The initial text input from the user.
+        max_length (int): The maximum number of tokens in the generated story.
+        temperature (float): Controls randomness (higher = more random, lower = more predictable).
+        top_p (float): Nucleus sampling parameter (higher = more diverse output).
     
-    setting = settings.get(char1, settings.get(char2, "a mysterious place"))
-
-    # Select a random conflict and resolution
-    conflict = random.choice(conflicts)
-    resolution = random.choice(resolutions)
-
-    # Construct the story dynamically
-    story = (
-        f"Once upon a time, {char1.capitalize()} met {char2.capitalize()} in {setting}. "
-        f"Suddenly, {conflict}. "
-        f"But in the end, {resolution}."
-    )
+    Returns:
+        str: Generated story text.
+    """
     
+    input_ids = tokenizer.encode(prompt, return_tensors="pt").to(device)
+
+    attention_mask = torch.ones(input_ids.shape, dtype=torch.long).to(device)
+
+    # Generate story text
+    with torch.no_grad():
+        output = model.generate(
+            input_ids, 
+            attention_mask=attention_mask,  # Pass attention mask
+            max_length=max_length, 
+            temperature=temperature, 
+            top_p=top_p, 
+            do_sample=True,  # randomness
+            pad_token_id=tokenizer.pad_token_id  # Use pad_token_id explicitly
+        )
+
+    story = tokenizer.decode(output[0], skip_special_tokens=True)
     return story
 
-# Example Usage
-user_prompt = "The Robot and the Astronaut"
-print(generate_dynamic_story(user_prompt.lower()))
+if __name__ == "__main__":
+    user_prompt = input("Enter a story prompt: ")
+    generated_story = generate_story(user_prompt)
+    print("\nGenerated Story:\n", generated_story)
+
+# https://www.webtoons.com/en/action/boundless-ascension/episode-84/viewer?title_no=5228&episode_no=84
